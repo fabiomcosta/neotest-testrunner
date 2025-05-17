@@ -5,8 +5,8 @@ end
 
 local lib = require("neotest.lib")
 local logger = require("neotest.logging")
-local utils = require("neotest-phpunit.utils")
-local config = require("neotest-phpunit.config")
+local utils = require("neotest-testrunner.utils")
+local config = require("neotest-testrunner.config")
 
 local dap_configuration
 

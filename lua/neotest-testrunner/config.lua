@@ -1,7 +1,7 @@
 local M = {}
 
 M.get_phpunit_cmd = function()
-  return "vendor/bin/phpunit"
+  return "t"
 end
 
 M.get_env = function()
@@ -13,11 +13,11 @@ M.get_root_ignore_files = function()
 end
 
 M.get_root_files = function()
-  return { "composer.json", "phpunit.xml", ".gitignore" }
+  return { ".gitignore", ".arcconfig" }
 end
 
 M.get_filter_dirs = function()
-  return { ".git", "node_modules" }
+  return { ".git", ".hg", "node_modules" }
 end
 
 return M

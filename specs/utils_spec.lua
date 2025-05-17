@@ -1,4 +1,4 @@
-local utils = require("neotest-phpunit.utils")
+local utils = require("neotest-testrunner.utils")
 
 describe("get_test_results", function()
   it("parses output when testing a method", function()
