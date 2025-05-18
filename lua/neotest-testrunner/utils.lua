@@ -8,6 +8,7 @@ local separator = "::"
 ---@param namespace neotest.Position[] Any namespaces the position is within
 ---@return string
 M.make_test_id = function(position)
+
   -- Treesitter starts line numbers from 0 so we add 1
   local id = position.path .. separator .. (tonumber(position.range[1]) + 1)
 
