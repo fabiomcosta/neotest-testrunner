@@ -59,7 +59,7 @@ local function make_outputs(test, output_file)
   local test_attr = test["_attr"] or test[1]["_attr"]
 
   local test_id = test_attr.file .. separator .. test_attr.line
-  logger.info("PHPUnit id:", { test_id })
+  logger.info("testrunner id:", { test_id })
 
   local classname = test_attr.classname or test_attr.class
   local test_output = {

@@ -1,7 +1,7 @@
 local lib = require("neotest.lib")
-local logger = require("neotest.logging")
 local utils = require("neotest-testrunner.utils")
 local config = require("neotest-testrunner.config")
+
 
 ---@class neotest.Adapter
 ---@field name string
@@ -21,20 +21,19 @@ function NeotestAdapter.root(dir)
   end
 end
 
----@async
----@param file_path string
----@return boolean
-function NeotestAdapter.is_test_file(file_path)
-  -- TODO: We might want to support other files in the future
-  return vim.endswith(file_path, "Test.php")
-end
-
 ---Filter directories when searching for test files
 ---@async
 ---@param name string Name of directory
 ---@return boolean
 function NeotestAdapter.filter_dir(name)
   return false
+end
+
+---@async
+---@param file_path string
+---@return boolean
+function NeotestAdapter.is_test_file(file_path)
+  return vim.endswith(file_path, "Test.php")
 end
 
 ---Given a file path, parse all the tests within it.
@@ -47,6 +46,7 @@ function NeotestAdapter.discover_positions(path)
   end
 
   local query = [[
+    ;; query
     ((class_declaration
       name: (identifier) @namespace.name (#match? @namespace.name "Test")
     ) @namespace.definition)
@@ -57,7 +57,7 @@ function NeotestAdapter.discover_positions(path)
     ) @test.definition)
   ]]
 
-  return lib.treesitter.parse_positions(path, query, {
+  return lib.treesitter._parse_positions(path, query, {
     position_id = "require('neotest-testrunner.utils').make_test_id",
   })
 end
@@ -66,8 +66,6 @@ end
 ---@return neotest.RunSpec | nil
 function NeotestAdapter.build_spec(args)
   local position = args.tree:data()
-
-  logger.info('build_spec', position)
 
   if position.type == 'directory' or position.type == 'namespace' then
     return error('Position type: ' .. position.type .. ' not supported')
@@ -101,8 +99,6 @@ end
 ---@param tree neotest.Tree
 ---@return neotest.Result[]
 function NeotestAdapter.results(spec, result, tree)
-  logger.info('results', spec, result)
-
   local position_id = spec.context.position_id
   return {
     [position_id] = {
@@ -111,37 +107,26 @@ function NeotestAdapter.results(spec, result, tree)
   }
 end
 
-
 local is_callable = function(obj)
   return type(obj) == "function" or (type(obj) == "table" and obj.__call)
 end
 
+
+local setup_config = function(config_name, opt_value)
+  if is_callable(opt_value) then
+    config[config_name] = opt_value
+  elseif opt_value then
+    config[config_name] = function()
+      return opt_value
+    end
+  end
+end
+
 setmetatable(NeotestAdapter, {
-  __call = function(_, opts)
-    if is_callable(opts.cmd) then
-      config.get_cmd = opts.cmd
-    elseif opts.cmd then
-      config.get_cmd = function()
-        return opts.cmd
-      end
-    end
-    if is_callable(opts.root_files) then
-      config.get_root_files = opts.root_files
-    elseif opts.root_files then
-      config.get_root_files = function()
-        return opts.root_files
-      end
-    end
-    if is_callable(opts.env) then
-      config.get_env = opts.env
-    elseif type(opts.env) == "table" then
-      config.get_env = function()
-        return opts.env
-      end
-    end
-    if type(opts.dap) == "table" then
-      dap_configuration = opts.dap
-    end
+  __call = function(_self, opts)
+    setup_config('get_cmd', opts.cmd)
+    setup_config('get_root_files', opts.root_files)
+    setup_config('get_env', opts.env)
     return NeotestAdapter
   end,
 })
