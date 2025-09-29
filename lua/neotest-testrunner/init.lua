@@ -1,4 +1,5 @@
 local lib = require("neotest.lib")
+local logger = require("neotest.logging")
 local utils = require("neotest-testrunner.utils")
 local config = require("neotest-testrunner.config")
 
@@ -57,6 +58,9 @@ function NeotestAdapter.discover_positions(path)
     ) @test.definition)
   ]]
 
+  -- using lib.treesitter.parse_positions starts the test cmd from a new
+  -- neovim headless with no config loaded process which causes all sorts
+  -- of unexpected issues.
   return lib.treesitter._parse_positions(path, query, {
     position_id = "require('neotest-testrunner.utils').make_test_id",
   })
@@ -88,7 +92,7 @@ function NeotestAdapter.build_spec(args)
   ---@type neotest.RunSpec
   return {
     command = command,
-    context = { position_id = position.id },
+    context = { position = { id = position.id, type = position.type } },
     env = args.env or config.get_env(),
   }
 end
@@ -99,12 +103,45 @@ end
 ---@param tree neotest.Tree
 ---@return neotest.Result[]
 function NeotestAdapter.results(spec, result, tree)
-  local position_id = spec.context.position_id
-  return {
-    [position_id] = {
-      status = result.code == 0 and "passed" or "failed",
+  local position = spec.context.position
+
+
+  if result.code == 0 then
+    return {
+      [position.id] = {
+        status = "passed",
+      }
     }
-  }
+  end
+
+  if position.type == "file" then
+    return {
+      [position.id] = {
+        -- TODO: when code == 1 we have to read result.output and
+        -- see which positiones failed and which passed
+        status = result.code == 0 and "passed" or "failed",
+      }
+    }
+  end
+
+  -- When the type is "test", the "t" command has what seems to be a bug
+  -- where it returns code=1 even when all filtered tests passed.
+  if position.type == "test" then
+    local output_file = result.output
+    local ok, output_content = pcall(lib.files.read, output_file)
+    if not ok then
+      logger.error("Could not get test results", output_file)
+      return {}
+    end
+    local any_test_failed = string.find(output_content, '[(]FAILED [(]%d+[)][)]') ~= nil
+    return {
+      [position.id] = {
+        status = any_test_failed and "failed" or "passed",
+      }
+    }
+  end
+
+  error('Position type: ' .. position.type .. ' not supported')
 end
 
 local is_callable = function(obj)
